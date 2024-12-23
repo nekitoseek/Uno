@@ -4,7 +4,7 @@ namespace GameUno
 {
     public static class DropDesk
     {
-        public static Card TopCard { get; private set; }
+        public static Card? TopCard { get; private set; }
 
         public static void DropACard(Card card)
         {
@@ -63,7 +63,7 @@ namespace GameUno
             }
         }
 
-        public static event EventHandler TopCardChanged;
+        public static event EventHandler? TopCardChanged;
         private static void SetName(int id, string name)
         {
             var card = Helper.CreateACard(id, name);

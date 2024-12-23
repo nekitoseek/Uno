@@ -11,7 +11,7 @@
         /// <summary>
         /// Особенность карты, определяющее её свойства
         /// </summary>
-        public Feature Feature { get; set; }
+        public Feature? Feature { get; set; }
 
         public int ID { get; } = id;
 

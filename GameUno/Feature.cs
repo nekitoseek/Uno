@@ -6,7 +6,7 @@
     [Serializable]
     public abstract class Feature
     {
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Допустимые операции над картой

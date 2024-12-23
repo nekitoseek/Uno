@@ -66,7 +66,7 @@ namespace GameUno
                             var index = rand.Next(0, list.Count);
                             var cardIndex = list[index];
                             list.RemoveAt(index);
-                            string name = null;
+                            string? name = null;
                             using (var command = new MySqlCommand("SELECT `Name` FROM `UNO`.`Desk` WHERE `Id`=@Id",
                                 server.Connection, tr))
                             {

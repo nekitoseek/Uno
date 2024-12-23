@@ -31,7 +31,7 @@ namespace GameUno
             return list.ToArray();
         }
 
-        public static void Add(string message = null)
+        public static void Add(string message = "")
         {
             using (var server = new Server())
             {

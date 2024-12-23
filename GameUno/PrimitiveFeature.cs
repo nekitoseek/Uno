@@ -33,7 +33,7 @@ namespace GameUno
             allowedOperations = AllowedOperations.Drop;
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return Name;
         }

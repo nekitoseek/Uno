@@ -174,7 +174,7 @@ namespace GameUno
             Run = true;
         }
 
-        public static event EventHandler StepOrderChanged;
+        public static event EventHandler? StepOrderChanged;
         public static int StepOrder
         {
             get
@@ -210,7 +210,7 @@ namespace GameUno
             }
         }
 
-        public static event EventHandler DirectionChanged;
+        public static event EventHandler? DirectionChanged;
         public static bool Direction
         {
             get => direction;
@@ -222,7 +222,7 @@ namespace GameUno
             }
         }
 
-        public static event EventHandler RunChanged;
+        public static event EventHandler? RunChanged;
         public static bool Run
         {
             get => run;

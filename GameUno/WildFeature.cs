@@ -32,7 +32,7 @@
             allowedOperations = AllowedOperations.Drop | AllowedOperations.Wild | allowed;
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             return Name;
         }

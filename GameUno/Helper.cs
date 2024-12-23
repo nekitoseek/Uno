@@ -8,7 +8,7 @@ namespace GameUno
         class Content
         {
             public int Id { get; set; }
-            public string Name { get; set; }
+            public string? Name { get; set; }
         }
 
         public static List<Card> GetHandsCards(int stepOrder)
@@ -52,15 +52,19 @@ namespace GameUno
             return -1;
         }
 
-        public static Card CreateACard(int id, string name)
+        public static Card? CreateACard(int id, string? name)
         {
             var list = new List<Card>();
             CreateAndAddCardToList(list, id, name);
             return list.Count == 1 ? list[0] : null;
         }
 
-        private static void CreateAndAddCardToList(List<Card> list, int id, string name)
+        private static void CreateAndAddCardToList(List<Card> list, int id, string? name)
         {
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentException("Card name cannot be null or empty.", nameof(name));
+            }
             var card = new Card(id, name);
             var n = 0;
             foreach (var colorName in Enum.GetNames(typeof(CardColor)))
@@ -105,9 +109,9 @@ namespace GameUno
             }
         }
 
-        public static Card GetPurchaseCardToHands(int stepOrder, int count = 1)
+        public static Card? GetPurchaseCardToHands(int stepOrder, int count = 1)
         {
-            Card card = null;
+            Card? card = null;
             using (var server = new Server())
             {
                 if (server.Connected)

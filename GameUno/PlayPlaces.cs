@@ -120,10 +120,10 @@ namespace GameUno
             }
         }
 
-        public static event PlayerEventHandler PlayerChanged;
+        public static event PlayerEventHandler? PlayerChanged;
         private static void SetPlayer(int order, string name, int cards, int score)
         {
-            PlayerChanged?.Invoke(null,
+            PlayerChanged?.Invoke(new object(),
                 new PlayerEventArgs(order, name, cards, score));
         }
 
@@ -144,7 +144,7 @@ namespace GameUno
             }
         }
 
-        public static string GetPlayerName(int stepOrder)
+        public static string? GetPlayerName(int stepOrder)
         {
             using (var server = new Server())
             {
