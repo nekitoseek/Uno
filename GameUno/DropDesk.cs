@@ -6,7 +6,7 @@ namespace GameUno
     {
         public static Card? TopCard { get; private set; }
 
-        public static void DropACard(Card card)
+        public static void DropACard(Card? card)
         {
             using (var server = new Server())
             {
@@ -18,14 +18,14 @@ namespace GameUno
                         // очистка карт на руках
                         using (var command = new MySqlCommand("DELETE FROM `Hands` WHERE `Id`=@Id", server.Connection, tr))
                         {
-                            command.Parameters.AddWithValue("@Id", card.ID);
+                            command.Parameters.AddWithValue("@Id", card?.ID);
                             command.ExecuteNonQuery();
                         }
                         using (var insertCommand = new MySqlCommand(
                             "INSERT INTO `Drop` (`Name`) VALUES (@Name)",
                             server.Connection, tr))
                         {
-                            insertCommand.Parameters.AddWithValue("@Name", card.Name);
+                            insertCommand.Parameters.AddWithValue("@Name", card?.Name);
                             insertCommand.ExecuteNonQuery();
                         }
                         tr.Commit();

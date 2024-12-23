@@ -2,13 +2,7 @@
 {
     public static class CompareCardsRules
     {
-        /// <summary>
-        /// Правиля сравнения карт "UNO"
-        /// </summary>
-        /// <param name="color">Текущий установленный цвет в игре</param>
-        /// <param name="origin">Карта сверху на стопке сброса</param>
-        /// <param name="test">Тестируемая карта, которую хотят сбросить</param>
-        /// <returns>true - сброс возможен</returns>
+        // Правила сравнения карт "UNO"
         public static bool Compare(CardColor color, Card origin, Card test)
         {
             return test.Feature is WildFeature || color == test.Color ||

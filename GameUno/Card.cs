@@ -1,28 +1,18 @@
 ﻿namespace GameUno
 {
-    /// <summary>
-    /// Карта
-    /// </summary>
     [Serializable]
     public class Card(int id, string name)
     {
         public string Name { get; private set; } = name;
 
-        /// <summary>
-        /// Особенность карты, определяющее её свойства
-        /// </summary>
         public Feature? Feature { get; set; }
 
         public int ID { get; } = id;
 
-        /// <summary>
-        /// Стоимость карты
-        /// </summary>
+        // Стоимость карты
         public int Cost { get; set; }
 
-        /// <summary>
-        /// Цвет карты
-        /// </summary>
+        // Цвет карты
         public CardColor Color { get; set; }
 
         public void ChangeWildColor(CardColor color)

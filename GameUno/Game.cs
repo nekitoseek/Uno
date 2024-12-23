@@ -13,9 +13,7 @@ namespace GameUno
 
         public static int Round { get; set; }
 
-        /// <summary>
-        /// Очистить игру целиком
-        /// </summary>
+        // Очистить игру целиком
         public static void Clear()
         {
             Round = 0;

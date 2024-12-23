@@ -4,10 +4,10 @@ namespace GameUno
 {
     public partial class MainForm : Form
     {
-        private int ThisOrder;
-        private readonly Dictionary<string, Image> Images;
-        private Card TopCard = null;
-        private bool BotsMode = false;
+        private int ThisOrder; // хранит номер игрока, чей ход текущий
+        private readonly Dictionary<string, Image> Images; // словарь для карт
+        private Card? TopCard = null; // верхняя карта в стопке
+        private bool BotsMode = false; // бот
 
         public MainForm()
         {
@@ -20,16 +20,18 @@ namespace GameUno
             DropDesk.TopCardChanged += DropDesk_TopCardChanged;
         }
 
+        // загрузка
         private void MainForm_Load(object sender, EventArgs e)
         {
             PurchaseDesk.ReshuffleCards();
             Game.Update();
             PlayPlaces.Update();
             tsslStatusMessage.Text = ThisOrder == 1
-                ? "Начните игру при комплекте игроков..."
-                : "Ожидайте начала игры...";
+                ? "Ожидайте начала игры..."
+                : "Начните игру при комплекте игроков...";
         }
 
+        // закрытие
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             if (ThisOrder == 1)
@@ -46,6 +48,7 @@ namespace GameUno
             }
         }
 
+        // интерфейс игроков
         private void Players_PlayerChanged(object sender, PlayerEventArgs args)
         {
             while (lvPlayers.Items.Count < args.StepOrder)
@@ -62,15 +65,11 @@ namespace GameUno
             lvPlayers.Items[index].SubItems[2].Text = args.PlayScore.ToString();
         }
 
-        /// <summary>
-        /// Сверху новая карта сброшена
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void DropDesk_TopCardChanged(object sender, EventArgs e)
+        // когда кладем новую карту на верх колоды
+        private void DropDesk_TopCardChanged(object? sender, EventArgs? e)
         {
-            var topCard = (Card)sender;
-            if (TopCard != null && TopCard.ID == topCard.ID) return;
+            var topCard = (Card?)sender;
+            if (TopCard != null && TopCard.ID == topCard?.ID) return;
             TopCard = topCard;
             panelDirection.Invalidate();
             UpdateHandsCards();
@@ -78,13 +77,11 @@ namespace GameUno
             UpdateAroundArrows(TopCard);
         }
 
-        /// <summary>
-        /// Очерёдность хода случилась
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void Game_StepOrderChanged(object sender, EventArgs e)
+        // смена очерёдности хода
+        private void Game_StepOrderChanged(object? sender, EventArgs? e)
         {
+            if (sender == null)
+                throw new ArgumentNullException(nameof(sender), "Sender не может быть null.");
             var stepOrder = (int)sender;
             UpdatePlayerPositionAndStatus(stepOrder);
         }
@@ -112,6 +109,7 @@ namespace GameUno
             }
         }
 
+        // управление действиями бота
         private void timerStepAsBot_Tick(object sender, EventArgs e)
         {
             timerStepAsBot.Enabled = false;
@@ -120,6 +118,7 @@ namespace GameUno
             waitTime = rand.Next(500, 1000);
             var botOrder = Game.StepOrder;
             var cards = Helper.GetHandsCards(botOrder);
+            // если нужная карта есть - бросает
             if (CanDropAnyCardsFromHands(botOrder))
             {
                 CalculateBotCard(botOrder, cards);
@@ -129,7 +128,7 @@ namespace GameUno
             else
             {
                 botOrder = Game.StepOrder;
-                // бот берёт карту из колоды прикупа
+                // бот берёт карту из колоды
                 GetACardFromPurchase(botOrder, isBot: true);
                 if (CanDropAnyCardsFromHands(botOrder))
                 {
@@ -141,10 +140,11 @@ namespace GameUno
             }
         }
 
+        // стратегия игры бота
         private void CalculateBotCard(int botOrder, List<Card> cards)
         {
-            var card = cards.Where(crd => CompareCardsRules.Compare(TopCard.Color, TopCard, crd)).First(); // здесь стратегия бота при выборе карты
-            Log.Add($"{PlayPlaces.GetPlayerName(botOrder)} кладёт карту {card.Name}");
+            var card = cards.FirstOrDefault(crd => CompareCardsRules.Compare(TopCard.Color, TopCard, crd)); // здесь стратегия бота при выборе карты
+            Log.Add($"{PlayPlaces.GetPlayerName(botOrder)} кладёт карту {card?.Name}");
             UpdateCardActions(card, botOrder, isBot: true);
             PlayPlaces.AddOrSubCountCards(botOrder, -1);
             DropDesk.DropACard(card);
@@ -155,6 +155,7 @@ namespace GameUno
                 CalculateWinScore(botOrder);
         }
 
+        // подсчет очков
         private void CalculateWinScore(int order)
         {
             var score = Helper.CalculateWinScore(order);
@@ -183,10 +184,15 @@ namespace GameUno
             Log.Add($"Первая карта карта {TopCard.Name}");
         }
 
-        private void Game_RunChanged(object sender, EventArgs e)
+        // запуск/остановка игры
+        private void Game_RunChanged(object? sender, EventArgs? e)
         {
-            var run = (bool)sender;
-            if (!run)
+            var run = sender as bool?;
+            if (run == null)
+            {
+                throw new InvalidOperationException("Sender должен быть типа bool.");
+            }
+            if (!run.Value)
             {
                 panelDirection.BackgroundImage = null;
                 return;
@@ -194,6 +200,7 @@ namespace GameUno
             StartPlayerGame();
         }
 
+        // старт игры
         private void StartPlayerGame()
         {
             if (!BotsMode)
@@ -210,7 +217,7 @@ namespace GameUno
                 {
                     Log.Add($"=== Раунд: {Game.Round} ===");
                     Log.Add($"Первая карта карта {TopCard.Name}");
-                    if (TopCard.Feature.AllowedOperations.HasFlag(AllowedOperations.Wild))
+                    if (TopCard.Feature?.AllowedOperations.HasFlag(AllowedOperations.Wild) == true)
                     {
                         var rand = new Random();
                         TopCard.ChangeWildColor((CardColor)rand.Next(4));
@@ -220,11 +227,7 @@ namespace GameUno
             }
         }
 
-        /*
-         * TODO:
-         * 10. Механизм пополнения колоды прикупа при израсходовании колоды
-         */
-
+        // есть ли на руках подходящая карта для сброса
         private bool CanDropAnyCardsFromHands(int stepOrder)
         {
             if (TopCard != null)
@@ -236,7 +239,8 @@ namespace GameUno
             return false;
         }
 
-        private bool CanDropTheCardsFromHands(Card droping)
+        // может ли конкретная карта быть сброшенной на верх колоды
+        private bool CanDropTheCardsFromHands(Card? droping)
         {
             if (TopCard != null && droping != null)
             {
@@ -246,15 +250,16 @@ namespace GameUno
             return false;
         }
 
+        // обновление отображения карт на руках у игрока
         private void UpdateHandsCards()
         {
             lvCards.Items.Clear();
             imageListCards.Images.Clear();
             var cards = Helper.GetHandsCards(ThisOrder);
             if (cards.Count() < 8)
-                imageListCards.ImageSize = new Size(80, 120);
+                imageListCards.ImageSize = new Size(80, 120); // разрешение
             else
-                imageListCards.ImageSize = new Size(40, 60);
+                imageListCards.ImageSize = new Size(40, 60); // разрешение
             foreach (var card in cards)
             {
                 imageListCards.Images.Add(card.Name, Images[card.Name]);
@@ -264,16 +269,14 @@ namespace GameUno
             }
         }
 
-        private void Game_DirectionChanged(object sender, EventArgs e)
+        // когда меняется направление хода
+        private void Game_DirectionChanged(object? sender, EventArgs? e)
         {
             if (TopCard == null) return;
             UpdateAroundArrows(TopCard);
         }
 
-        /// <summary>
-        /// Указатель цвета и направления игры приводим в соответствие с последней сброшенной картой
-        /// </summary>
-        /// <param name="card"></param>
+        // стрелки в соответствии с направлением хода и цветом карты
         private void UpdateAroundArrows(Card card)
         {
             switch (card.Color)
@@ -301,11 +304,7 @@ namespace GameUno
             }
         }
 
-        /// <summary>
-        /// Опрос состояния игры по сети
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        // периодическое обновление состояния игры и интерфейса
         private void timerUpdate_Tick(object sender, EventArgs e)
         {
             Game.Update();
@@ -319,6 +318,7 @@ namespace GameUno
             UpdateMessages();
         }
 
+        // обновление интерфейса лога
         private void UpdateMessages()
         {
             tbLog.Lines = Log.SelectLastMessages(100);
@@ -326,19 +326,15 @@ namespace GameUno
             tbLog.ScrollToCaret();
         }
 
-        /// <summary>
-        /// Меню "Очистить игру"
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        // очистка игры по клику кнопки
         private void clearGameToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Game.StopGame();
             ClearGame();
-            //ConnectToGame();
             ThisOrder = 0;
         }
 
+        // сама очистка игры
         private static void ClearGame()
         {
             Log.Clear();
@@ -348,11 +344,13 @@ namespace GameUno
             PlayPlaces.Update();
         }
 
+        // подключение к игре по кнопке
         private void connectToGameToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ConnectToGame();
         }
 
+        // само подключение
         private void ConnectToGame()
         {
             PlayPlaces.DefinePlaceOrder("Игрок");
@@ -364,6 +362,7 @@ namespace GameUno
                 Text = $"Игра \"UNO\" - {name}";
         }
 
+        // менюшка
         private void gameToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
         {
             Game.Update();
@@ -374,6 +373,7 @@ namespace GameUno
             stopTheGameToolStripMenuItem.Enabled = ThisOrder == 1 && Game.Run;
         }
 
+        // начать игру (кнопка)
         private void runTheGameToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (ThisOrder == 1)
@@ -387,6 +387,7 @@ namespace GameUno
             }
         }
 
+        // остановить игру (кнопка)
         private void stopTheGameToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (ThisOrder == 1)
@@ -396,6 +397,7 @@ namespace GameUno
             }
         }
 
+        // выйти (кнопка)
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Close();
@@ -406,6 +408,7 @@ namespace GameUno
             GetACardFromPurchase(ThisOrder);
         }
 
+        // забор карты из колоды
         private void GetACardFromPurchase(int stepOrder, bool isBot = false)
         {
             var lastCard = Helper.GetPurchaseCardToHands(stepOrder, 1);
@@ -434,13 +437,14 @@ namespace GameUno
             }
         }
 
+        // бросить карту(дабл клик)
         private void lvCards_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             if (lvCards.SelectedItems.Count == 0) return;
-            var card = (Card)lvCards.SelectedItems[0].Tag;
+            var card = (Card?)lvCards.SelectedItems[0].Tag;
             if (CanDropTheCardsFromHands(card))
             {
-                Log.Add($"{PlayPlaces.GetPlayerName(ThisOrder)} кладёт карту {card.Name}");
+                Log.Add($"{PlayPlaces.GetPlayerName(ThisOrder)} кладёт карту {card?.Name}");
                 UpdateCardActions(card, ThisOrder);
                 PlayPlaces.AddOrSubCountCards(ThisOrder, -1);
                 DropDesk.DropACard(card);
@@ -456,67 +460,71 @@ namespace GameUno
             {
                 tsslStatusMessage.BackColor = Color.Red;
                 timerErrorStatus.Tag = tsslStatusMessage.Text;
-                tsslStatusMessage.Text = $"Карту \"{card.Name}\" нельзя положить";
-                timerErrorStatus.Enabled = true;
+                tsslStatusMessage.Text = $"Карту \"{card?.Name}\" нельзя положить";
+                timerErrorStatus.Enabled = true; // сообщение об ошибке, что карту нельзя бросить
             }
         }
 
+        // сброс сообщения об ошибке
         private void timerErrorStatus_Tick(object sender, EventArgs e)
         {
             timerErrorStatus.Enabled = false;
             tsslStatusMessage.BackColor = Color.Transparent;
-            tsslStatusMessage.Text = (string)timerErrorStatus.Tag;
+            tsslStatusMessage.Text = (string?)timerErrorStatus.Tag;
         }
 
-        /// <summary>
-        /// Обработка активных карт
-        /// </summary>
-        /// <param name="card"></param>
-        private void UpdateCardActions(Card card, int stepOrder, bool isBot = false)
+        // карты с действиями
+        private void UpdateCardActions(Card? card, int stepOrder, bool isBot = false)
         {
             var nextStepOrder = Game.GetNextStepOrder(stepOrder);
-            if (card.Feature.AllowedOperations.HasFlag(AllowedOperations.Rotate))
+            if (card?.Feature?.AllowedOperations.HasFlag(AllowedOperations.Rotate) == true)
             {
+                // карта смены направления
                 Log.Add($"{PlayPlaces.GetPlayerName(nextStepOrder)} меняет направление игры и пропускает ход");
                 Game.ReverseDirection();
                 Game.PrevStep();
             }
             else
-            if (card.Feature.AllowedOperations.HasFlag(AllowedOperations.Skip))
+            if (card?.Feature?.AllowedOperations.HasFlag(AllowedOperations.Skip) == true)
             {
+                // карта пропуска хода
                 Log.Add($"{PlayPlaces.GetPlayerName(nextStepOrder)} пропускает ход");
                 Game.NextStep();
             }
             else
-            if (card.Feature.AllowedOperations.HasFlag(AllowedOperations.TakeTwo))
+            if (card?.Feature?.AllowedOperations.HasFlag(AllowedOperations.TakeTwo) == true)
             {
+                // карта +2
                 Log.Add($"{PlayPlaces.GetPlayerName(nextStepOrder)} берёт две карты и пропускает ход");
                 Helper.GetPurchaseCardToHands(nextStepOrder, 2);
                 PlayPlaces.AddOrSubCountCards(nextStepOrder, 2);
                 Game.NextStep();
             }
             else
-            if (card.Feature.AllowedOperations.HasFlag(AllowedOperations.Wild))
+            if (card?.Feature?.AllowedOperations.HasFlag(AllowedOperations.Wild) == true)
             {
+                // карта выбора цвета
                 if (card.Feature.AllowedOperations.HasFlag(AllowedOperations.Color) &&
                     !card.Feature.AllowedOperations.HasFlag(AllowedOperations.TakeFour))
                 {
                     CardColor selected;
                     if (!isBot)
                     {
+                        // форма для выбора карт
                         var frm = new SelectColorForm();
                         frm.ShowDialog();
                         selected = frm.Color;
                     }
-                    else
+                    else // если бот цвет выбирается рандомно
                     {
                         var rand = new Random();
                         selected = (CardColor)rand.Next(4); // здесь стратегия бота при выборе цвета
                     }
-                    card.ChangeWildColor(selected);
+                    card.ChangeWildColor(selected); // цвет карты и цвет стрелок направления
                     UpdateAroundArrows(card);
                     Log.Add($"{PlayPlaces.GetPlayerName(stepOrder)} выбрал цвет: {selected}");
                 }
+                // дикая карта (+4)
                 else if (card.Feature.AllowedOperations.HasFlag(AllowedOperations.Color | AllowedOperations.TakeFour))
                 {
                     CardColor selected;
@@ -542,6 +550,7 @@ namespace GameUno
             }
         }
 
+        // отрисовка карт из нашего словаря
         private void panelDirection_Paint(object sender, PaintEventArgs e)
         {
             if (TopCard == null || !Images.ContainsKey(TopCard.Name)) return;
@@ -557,17 +566,20 @@ namespace GameUno
             g.DrawImage(image, destRect, srcRect, GraphicsUnit.Pixel);
         }
 
+        // обработка нажатия кнопки Вид - Лог
         private void showLogToolStripMenuItem_Click(object sender, EventArgs e)
         {
             splitContainer3.Panel2Collapsed = !showLogToolStripMenuItem.Checked;
         }
 
+        // отображение кнопки UNO! и запуск таймера
         private void btnSayUnoIfOneCard_VisibleChanged(object sender, EventArgs e)
         {
             if (btnSayUnoIfOneCard.Visible)
                 timerSayUNOwait.Enabled = true;
         }
 
+        // нажали кнопку, отключаем таймер
         private void btnSayUnoIfOneCard_Click(object sender, EventArgs e)
         {
             timerSayUNOwait.Enabled = false;
@@ -575,6 +587,7 @@ namespace GameUno
             Log.Add($"{PlayPlaces.GetPlayerName(ThisOrder)} сказал: UNO!");
         }
 
+        // не успели нажать, +2 карты
         private void timerSayUNOwait_Tick(object sender, EventArgs e)
         {
             timerSayUNOwait.Enabled = false;
@@ -586,13 +599,7 @@ namespace GameUno
             PlayPlaces.Update();
         }
 
-        /// <summary>
-        /// Запуск игры с ботами
-        /// Пустые имена игроков будут интерпретироваться как боты 
-        /// и за них ходы будет делать программа
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        // играть с ботами (кнопка)
         private void gameWithBotsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (ThisOrder == 1)
@@ -603,7 +610,7 @@ namespace GameUno
                 PlayPlaces.ClearScores();
                 PlayPlaces.Update();
                 TopCard = null;
-                timerStepAsBot.Enabled = PlayPlaces.GetPlayerName(ThisOrder).StartsWith("Бот");
+                timerStepAsBot.Enabled = PlayPlaces.GetPlayerName(ThisOrder)?.StartsWith("Бот") ?? false;
             }
         }
     }

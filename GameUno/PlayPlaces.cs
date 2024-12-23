@@ -38,9 +38,7 @@ namespace GameUno
             Order = 0;
         }
 
-        /// <summary>
-        /// Очистить таблицу игроков
-        /// </summary>
+        // Очистить таблицу игроков
         public static void Clear()
         {
             using (var server = new Server())
@@ -77,9 +75,7 @@ namespace GameUno
             }
         }
 
-        /// <summary>
-        /// Очистить таблицу результатов
-        /// </summary>
+        // Очистить таблицу результатов
         public static void ClearScores()
         {
             using (var server = new Server())
@@ -162,10 +158,7 @@ namespace GameUno
             return null;
         }
 
-        /// <summary>
-        /// Очистить место имени игрока, т.к. игрок отключился
-        /// </summary>
-        /// <param name="stepOrder"></param>
+        // Очистить место имени игрока после отключения
         public static void ClearPlayerPlace(int stepOrder)
         {
             using (var server = new Server())
