@@ -121,4 +121,28 @@
   <data name="Cards" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Resources\Cards.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="Желтые_стрелки_по_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Желтые стрелки по часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Желтые_стрелки_против_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Желтые стрелки против часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Зеленые_стрелки_по_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Зеленые стрелки по часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Зеленые_стрелки_против_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Зеленые стрелки против часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Красные_стрелки_по_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Красные стрелки по часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Красные_стрелки_против_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Красные стрелки против часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Синие_стрелки_по_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Синие стрелки по часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Синие_стрелки_против_часовой" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Resources\Синие стрелки против часовой.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
 </root>

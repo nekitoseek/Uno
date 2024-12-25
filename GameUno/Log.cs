@@ -1,69 +1,80 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.Xml.Linq;
 
 namespace GameUno
 {
     public static class Log
     {
+        private static readonly string LogFilePath = "Log.xml"; // Путь к XML-файлу
         public static int NumberLastMessage { get; private set; }
+
+        static Log()
+        {
+            // Инициализация: создание файла, если его нет
+            if (!File.Exists(LogFilePath))
+            {
+                var logDocument = new XDocument(new XElement("LogMessages"));
+                logDocument.Save(LogFilePath);
+            }
+            else
+            {
+                // Установить последний ID на основе существующего XML
+                var logDocument = XDocument.Load(LogFilePath);
+                NumberLastMessage = logDocument.Descendants("Message").Count();
+            }
+        }
 
         public static string[] SelectLastMessages(int count = 0)
         {
             var list = new List<string>();
-            using (var server = new Server())
+
+            if (File.Exists(LogFilePath))
             {
-                if (server.Connected)
+                var logDocument = XDocument.Load(LogFilePath);
+                var messages = logDocument.Descendants("Message")
+                    .OrderByDescending(x => (int)x.Attribute("Id"))
+                    .ToList(); // Преобразуем в List для последующих операций
+
+                if (count > 0)
                 {
-                    using (var command = new MySqlCommand(
-                        "SELECT `Message` FROM `Log` ORDER BY `Id` DESC" + (count > 0 ? $" LIMIT {count}" : ""),
-                        server.Connection))
-                    {
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                list.Add(reader.GetString(0));
-                            }
-                        }
-                    }
-                    list.Reverse();
+                    messages = messages.Take(count).ToList(); // Ограничиваем количество сообщений
+                }
+
+                foreach (var messageElement in messages.AsEnumerable().Reverse()) // Используем Reverse на List
+                {
+                    list.Add(messageElement.Value);
                 }
             }
+
             return list.ToArray();
         }
 
+
+
+
         public static void Add(string message = "")
         {
-            using (var server = new Server())
+            var logDocument = XDocument.Load(LogFilePath);
+            var logRoot = logDocument.Element("LogMessages");
+
+            if (logRoot != null)
             {
-                if (server.Connected)
-                {
-                    using (var command = new MySqlCommand("INSERT INTO `Log` (`Message`) VALUES (@Message)",
-                        server.Connection))
-                    {
-                        command.Parameters.AddWithValue("@Message", message ?? string.Empty);
-                        command.ExecuteNonQuery();
-                    }
-                    using (var command = new MySqlCommand("SELECT `Id` FROM `Log` ORDER BY `Id` DESC LIMIT 1", server.Connection))
-                    {
-                        var result = command.ExecuteScalar();
-                        NumberLastMessage = result != null ? (int)result : 0;
-                    }
-                }
+                NumberLastMessage++;
+                var newMessage = new XElement("Message",
+                    new XAttribute("Id", NumberLastMessage),
+                    message ?? string.Empty);
+
+                logRoot.Add(newMessage);
+                logDocument.Save(LogFilePath);
             }
         }
 
         public static void Clear()
         {
-            using (var server = new Server())
+            if (File.Exists(LogFilePath))
             {
-                if (server.Connected)
-                {
-                    using (var command = new MySqlCommand("DELETE FROM `Log`", server.Connection))
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                    NumberLastMessage = 0;
-                }
+                var logDocument = new XDocument(new XElement("LogMessages"));
+                logDocument.Save(LogFilePath);
+                NumberLastMessage = 0;
             }
         }
     }
