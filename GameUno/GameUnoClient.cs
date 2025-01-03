@@ -11,7 +11,7 @@ namespace GameUnoClient
         public GameClient(string serverAddress, int port)
         {
             this.serverAddress = serverAddress;
-            this.port = port;
+            this.port = 5000;
         }
 
         public string SendCommand(string command)
