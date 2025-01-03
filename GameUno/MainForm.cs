@@ -602,6 +602,10 @@ namespace GameUno
         // играть с ботами (кнопка)
         private void gameWithBotsToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            tsslStatusMessage.Text = "Подготовка игры с ботами...";
+            Game.StepOrder = 1; // Убедитесь, что первый ход назначен
+            UpdatePlayerPositionAndStatus(Game.StepOrder);
+
             if (ThisOrder == 1)
             {
                 BotsMode = true;

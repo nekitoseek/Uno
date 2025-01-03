@@ -1,5 +1,5 @@
-﻿using MySql.Data.MySqlClient;
-
+﻿
+using System.Xml.Linq;
 
 namespace GameUno
 {
@@ -8,67 +8,47 @@ namespace GameUno
         private static int stepOrder;
         private static bool direction;
         private static bool run;
+        private static readonly string GameFilePath = "Game.xml";
+
         public static int PlaceCount { get; private set; } = 2;
         public static int TargetScore { get; private set; } = 500;
 
         public static int Round { get; set; }
 
-        // Очистить игру целиком
+        static Game()
+        {
+            if (!File.Exists(GameFilePath))
+            {
+                var doc = new XDocument(
+                    new XElement("Game",
+                        new XElement("StepOrder", 0),
+                        new XElement("Direction", false),
+                        new XElement("Run", false)));
+                doc.Save(GameFilePath);
+            }
+        }
+
         public static void Clear()
         {
             Round = 0;
-            using (var server = new Server())
-            {
-                if (server.Connected)
-                {
-                    var tr = server.Connection.BeginTransaction();
-                    try
-                    {
-                        using (var command = new MySqlCommand("DELETE FROM `Game`", server.Connection, tr))
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        using (var command = new MySqlCommand("INSERT INTO `Game` (`StepOrder`,`Direction`,`Run`)" +
-                            " VALUES (@StepOrder,@Direction,@Run)",
-                            server.Connection, tr))
-                        {
-                            command.Parameters.AddWithValue("@StepOrder", 0);
-                            command.Parameters.AddWithValue("@Direction", false);
-                            command.Parameters.AddWithValue("@Run", false);
-                            command.ExecuteNonQuery();
-                        }
-                        tr.Commit();
-                    }
-                    catch
-                    {
-                        tr.Rollback();
-                    }
-                }
-            }
+            var doc = new XDocument(
+                new XElement("Game",
+                    new XElement("StepOrder", 0),
+                    new XElement("Direction", false),
+                    new XElement("Run", false)));
+            doc.Save(GameFilePath);
         }
 
         public static void Update()
         {
-            using (var server = new Server())
+            var doc = XDocument.Load(GameFilePath);
+            var root = doc.Element("Game");
+
+            if (root != null)
             {
-                if (server.Connected)
-                {
-                    using (var command = new MySqlCommand(
-                        "SELECT `StepOrder`,`Direction`,`Run` FROM `Game` LIMIT 1",
-                        server.Connection))
-                    {
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                SetStepOrder(reader.GetInt32(0));
-                                SetDirection(reader.GetBoolean(1));
-                                SetRun(reader.GetBoolean(2));
-                                break;
-                            }
-                        }
-                    }
-                }
+                SetStepOrder(int.Parse(root.Element("StepOrder")?.Value ?? "0"));
+                SetDirection(bool.Parse(root.Element("Direction")?.Value ?? "false"));
+                SetRun(bool.Parse(root.Element("Run")?.Value ?? "false"));
             }
         }
 
@@ -88,17 +68,7 @@ namespace GameUno
         {
             if (direction == dir) return;
             direction = dir;
-            using (var server = new Server())
-            {
-                if (server.Connected)
-                {
-                    using (var command = new MySqlCommand("UPDATE `Game` SET `Direction`=@Direction", server.Connection))
-                    {
-                        command.Parameters.AddWithValue("@Direction", direction);
-                        command.ExecuteNonQuery();
-                    }
-                }
-            }
+            UpdateGameFile("Direction", direction.ToString());
             DirectionChanged?.Invoke(direction, EventArgs.Empty);
         }
 
@@ -106,6 +76,7 @@ namespace GameUno
         {
             if (run == r) return;
             run = r;
+            UpdateGameFile("Run", run.ToString());
             RunChanged?.Invoke(run, EventArgs.Empty);
         }
 
@@ -177,33 +148,14 @@ namespace GameUno
         {
             get
             {
-                using (var server = new Server())
-                {
-                    if (server.Connected)
-                    {
-                        using (var command = new MySqlCommand("SELECT `StepOrder` FROM `Game`", server.Connection))
-                        {
-                            stepOrder = (int)command.ExecuteScalar();
-                            return stepOrder;
-                        }
-                    }
-                }
-                return 1;
+                var doc = XDocument.Load(GameFilePath);
+                var root = doc.Element("Game");
+                return int.Parse(root?.Element("StepOrder")?.Value ?? "1");
             }
             set
             {
                 stepOrder = value;
-                using (var server = new Server())
-                {
-                    if (server.Connected)
-                    {
-                        using (var command = new MySqlCommand("UPDATE `Game` SET `StepOrder`=@StepOrder", server.Connection))
-                        {
-                            command.Parameters.AddWithValue("@StepOrder", stepOrder);
-                            command.ExecuteNonQuery();
-                        }
-                    }
-                }
+                UpdateGameFile("StepOrder", stepOrder.ToString());
                 StepOrderChanged?.Invoke(stepOrder, EventArgs.Empty);
             }
         }
@@ -228,23 +180,12 @@ namespace GameUno
             {
                 if (run == value) return;
                 run = value;
-                using (var server = new Server())
+                UpdateGameFile("Run", run.ToString());
+                if (run)
                 {
-                    if (server.Connected)
-                    {
-                        using (var command = new MySqlCommand($"UPDATE `Game` SET `StepOrder`=@StepOrder,`Run`=@Run", server.Connection))
-                        {
-                            command.Parameters.AddWithValue("@StepOrder", 1);
-                            command.Parameters.AddWithValue("@Run", run);
-                            command.ExecuteNonQuery();
-                        }
-                        if (run)
-                        {
-                            Helper.EmptyHands();
-                            PurchaseDesk.ReshuffleCards();
-                            GetPurchaseCardToHands();
-                        }
-                    }
+                    Helper.EmptyHands();
+                    PurchaseDesk.ReshuffleCards();
+                    GetPurchaseCardToHands();
                 }
                 RunChanged?.Invoke(run, EventArgs.Empty);
             }
@@ -259,5 +200,15 @@ namespace GameUno
             }
         }
 
+        private static void UpdateGameFile(string elementName, string value)
+        {
+            var doc = XDocument.Load(GameFilePath);
+            var root = doc.Element("Game");
+            if (root != null)
+            {
+                root.Element(elementName)?.SetValue(value);
+                doc.Save(GameFilePath);
+            }
+        }
     }
 }

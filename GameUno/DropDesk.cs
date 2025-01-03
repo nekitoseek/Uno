@@ -1,101 +1,81 @@
-﻿using MySql.Data.MySqlClient;
+﻿
+using System.Xml.Linq;
 
 namespace GameUno
 {
     public static class DropDesk
     {
+        private const string DropFilePath = "Drop.xml";
+        private const string HandsFilePath = "Hands.xml";
+
         public static Card? TopCard { get; private set; }
+
+        static DropDesk()
+        {
+            // Инициализация XML-файлов, если они отсутствуют
+            if (!File.Exists(DropFilePath))
+                new XElement("Drop").Save(DropFilePath);
+
+            if (!File.Exists(HandsFilePath))
+                new XElement("Hands").Save(HandsFilePath);
+        }
 
         public static void DropACard(Card? card)
         {
-            using (var server = new Server())
-            {
-                if (server.Connected)
-                {
-                    var tr = server.Connection.BeginTransaction();
-                    try
-                    {
-                        // очистка карт на руках
-                        using (var command = new MySqlCommand("DELETE FROM `Hands` WHERE `Id`=@Id", server.Connection, tr))
-                        {
-                            command.Parameters.AddWithValue("@Id", card?.ID);
-                            command.ExecuteNonQuery();
-                        }
-                        using (var insertCommand = new MySqlCommand(
-                            "INSERT INTO `Drop` (`Name`) VALUES (@Name)",
-                            server.Connection, tr))
-                        {
-                            insertCommand.Parameters.AddWithValue("@Name", card?.Name);
-                            insertCommand.ExecuteNonQuery();
-                        }
-                        tr.Commit();
-                    }
-                    catch
-                    {
-                        tr.Rollback();
-                    }
-                }
-            }
+            if (card == null) return;
+
+            var handsXml = XElement.Load(HandsFilePath);
+            var dropXml = XElement.Load(DropFilePath);
+
+            // Удаляем карту из "Hands"
+            handsXml.Elements("Card")
+                .Where(x => (int)x.Element("Id") == card.ID)
+                .Remove();
+
+            // Добавляем карту в "Drop"
+            dropXml.Add(new XElement("Card",
+                new XElement("Id", card.ID),
+                new XElement("Name", card.Name)));
+
+            // Сохраняем изменения
+            handsXml.Save(HandsFilePath);
+            dropXml.Save(DropFilePath);
         }
 
         public static void Update()
         {
-            using (var server = new Server())
+            var dropXml = XElement.Load(DropFilePath);
+
+            // Берём последнюю карту из "Drop"
+            var lastCardElement = dropXml.Elements("Card").LastOrDefault();
+            if (lastCardElement != null)
             {
-                if (server.Connected)
-                {
-                    using (var command = new MySqlCommand(
-                        "SELECT `Id`,`Name` FROM `Drop` ORDER BY `Id` DESC LIMIT 1",
-                        server.Connection))
-                    {
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                var id = reader.GetInt32(0);
-                                var name = reader.GetString(1);
-                                SetName(id, name);
-                                break;
-                            }
-                        }
-                    }
-                }
+                var id = (int)lastCardElement.Element("Id");
+                var name = (string)lastCardElement.Element("Name");
+                SetName(id, name);
             }
         }
 
         public static event EventHandler? TopCardChanged;
+
         private static void SetName(int id, string name)
         {
             var card = Helper.CreateACard(id, name);
             if (card != null)
+            {
+                TopCard = card;
                 TopCardChanged?.Invoke(card, EventArgs.Empty);
+            }
         }
 
         public static void Clear()
         {
-            using (var server = new Server())
-            {
-                if (server.Connected)
-                {
-                    var tr = server.Connection.BeginTransaction();
-                    try
-                    {
-                        using (var command = new MySqlCommand("DELETE FROM `Drop`", server.Connection, tr))
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        using (var command = new MySqlCommand("DELETE FROM `Hands`", server.Connection, tr))
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        tr.Commit();
-                    }
-                    catch
-                    {
-                        tr.Rollback();
-                    }
-                }
-            }
+            // Очищаем оба XML-файла
+            new XElement("Drop").Save(DropFilePath);
+            new XElement("Hands").Save(HandsFilePath);
+
+            // Сбрасываем текущую верхнюю карту
+            TopCard = null;
         }
     }
 }

@@ -1,5 +1,5 @@
-﻿using MySql.Data.MySqlClient;
-
+﻿
+using System.Xml.Linq;
 
 namespace GameUno
 {
@@ -11,28 +11,24 @@ namespace GameUno
             public string? Name { get; set; }
         }
 
+        private static readonly string HandsXmlPath = "Hands.xml";
+        private static readonly string PurchaseXmlPath = "Purchase.xml";
+        private static readonly string DropXmlPath = "Drop.xml";
+
         public static List<Card> GetHandsCards(int stepOrder)
         {
             var list = new List<Card>();
-            using (var server = new Server())
+            if (File.Exists(HandsXmlPath))
             {
-                if (server.Connected)
+                var doc = XDocument.Load(HandsXmlPath);
+                var cards = doc.Root?.Elements("Card")
+                    .Where(x => (int)x.Element("Order") == stepOrder);
+
+                foreach (var card in cards!)
                 {
-                    using (var command = new MySqlCommand(
-                        $"SELECT `Id`,`Name` FROM `Hands` WHERE `Order`=@Order",
-                        server.Connection))
-                    {
-                        command.Parameters.AddWithValue("@Order", stepOrder);
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                var id = reader.GetInt32(0);
-                                var name = reader.GetString(1);
-                                CreateAndAddCardToList(list, id, name);
-                            }
-                        }
-                    }
+                    var id = (int)card.Element("Id");
+                    var name = (string)card.Element("Name");
+                    CreateAndAddCardToList(list, id, name);
                 }
             }
             list.Sort(ComparisonCardsFunc);
@@ -44,12 +40,9 @@ namespace GameUno
             if (x.Color == y.Color)
             {
                 if (x.Cost == y.Cost) return 0;
-                if (x.Cost > y.Cost) return 1;
-                return -1;
+                return x.Cost > y.Cost ? 1 : -1;
             }
-            else
-            if (x.Color > y.Color) return 1;
-            return -1;
+            return x.Color > y.Color ? 1 : -1;
         }
 
         public static Card? CreateACard(int id, string? name)
@@ -112,184 +105,90 @@ namespace GameUno
         public static Card? GetPurchaseCardToHands(int stepOrder, int count = 1)
         {
             Card? card = null;
-            using (var server = new Server())
+            if (File.Exists(PurchaseXmlPath))
             {
-                if (server.Connected)
-                {
-                    var tr = server.Connection.BeginTransaction();
-                    try
-                    {
-                        int cardsCount;
-                        using (var command = new MySqlCommand(
-                           "SELECT COUNT(*) FROM `purchase`", server.Connection))
-                        {
-                            cardsCount = (int)(long)command.ExecuteScalar();
-                        }
-                        if (cardsCount < count)
-                            RebuildPurchase(server.Connection, tr);
+                var purchaseDoc = XDocument.Load(PurchaseXmlPath);
+                var handDoc = File.Exists(HandsXmlPath) ? XDocument.Load(HandsXmlPath) : new XDocument(new XElement("Hands"));
 
-                        var list = new List<Content>();
-                        using (var command = new MySqlCommand(
-                            $"SELECT `Id`,`Name` FROM `Purchase` ORDER BY `Id` LIMIT {count}",
-                            server.Connection, tr))
-                        {
-                            using (var reader = command.ExecuteReader())
-                            {
-                                while (reader.Read())
-                                {
-                                    list.Add(new Content()
-                                    {
-                                        Id = reader.GetInt32(0),
-                                        Name = reader.GetString(1),
-                                    });
-                                }
-                            }
-                        }
-                        foreach (var item in list)
-                        {
-                            using (var insertCommand = new MySqlCommand(
-                                "INSERT INTO `Hands` (`Order`,`Name`) VALUES (@Order,@Name)",
-                                server.Connection, tr))
-                            {
-                                insertCommand.Parameters.AddWithValue("@Order", stepOrder);
-                                insertCommand.Parameters.AddWithValue("@Name", item.Name);
-                                insertCommand.ExecuteNonQuery();
-                            }
-                            // очистка колоды прикупа
-                            using (var command = new MySqlCommand("DELETE FROM `Purchase` WHERE `Id`=@Id", server.Connection, tr))
-                            {
-                                command.Parameters.AddWithValue("@Id", item.Id);
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                        tr.Commit();
-                        var lastCard = list.Last();
-                        card = CreateACard(lastCard.Id, lastCard.Name);
-                    }
-                    catch
-                    {
-                        tr.Rollback();
-                    }
+                var cards = purchaseDoc.Root?.Elements("Card").Take(count).ToList();
+
+                foreach (var cardElement in cards!)
+                {
+                    var id = (int)cardElement.Element("Id");
+                    var name = (string)cardElement.Element("Name");
+
+                    handDoc.Root?.Add(new XElement("Card",
+                        new XElement("Order", stepOrder),
+                        new XElement("Id", id),
+                        new XElement("Name", name)));
+
+                    cardElement.Remove();
+                    card = CreateACard(id, name);
                 }
+
+                handDoc.Save(HandsXmlPath);
+                purchaseDoc.Save(PurchaseXmlPath);
             }
             return card;
         }
 
-        private static void RebuildPurchase(MySqlConnection connection, MySqlTransaction tr)
+        private static void RebuildPurchase()
         {
-            var list = new List<Content>();
-            using (var command = new MySqlCommand("SELECT `Id`,`Name` FROM `Drop`", connection, tr))
+            if (File.Exists(DropXmlPath))
             {
-                using (var reader = command.ExecuteReader())
+                var dropDoc = XDocument.Load(DropXmlPath);
+                var purchaseDoc = File.Exists(PurchaseXmlPath) ? XDocument.Load(PurchaseXmlPath) : new XDocument(new XElement("Purchase"));
+
+                foreach (var card in dropDoc.Root?.Elements("Card")!)
                 {
-                    while (reader.Read())
-                    {
-                        list.Add(new Content()
-                        {
-                            Id = reader.GetInt32(0),
-                            Name = reader.GetString(1),
-                        });
-                    }
+                    purchaseDoc.Root?.Add(card);
                 }
-            }
-            foreach (var item in list)
-            {
-                using (var insertCommand = new MySqlCommand(
-                    "INSERT INTO `Purchase` (`Order`,`Name`) VALUES (@Order,@Name)", connection, tr))
-                {
-                    insertCommand.Parameters.AddWithValue("@Order", item.Id);
-                    insertCommand.Parameters.AddWithValue("@Name", item.Name);
-                    insertCommand.ExecuteNonQuery();
-                }
-                // очистка колоды прикупа
-                using (var command = new MySqlCommand("DELETE FROM `Drop` WHERE `Id`=@Id", connection, tr))
-                {
-                    command.Parameters.AddWithValue("@Id", item.Id);
-                    command.ExecuteNonQuery();
-                }
+
+                dropDoc.Root?.RemoveAll();
+                dropDoc.Save(DropXmlPath);
+                purchaseDoc.Save(PurchaseXmlPath);
             }
         }
 
         public static void GetPurchaseCardToDropFirstCard()
         {
-            using (var server = new Server())
+            if (File.Exists(PurchaseXmlPath))
             {
-                if (server.Connected)
+                var purchaseDoc = XDocument.Load(PurchaseXmlPath);
+                var dropDoc = File.Exists(DropXmlPath) ? XDocument.Load(DropXmlPath) : new XDocument(new XElement("Drop"));
+
+                var firstCard = purchaseDoc.Root?.Elements("Card").FirstOrDefault();
+
+                if (firstCard != null)
                 {
-                    var tr = server.Connection.BeginTransaction();
-                    try
-                    {
-                        // очистка колоды сброса
-                        using (var command = new MySqlCommand("DELETE FROM `Drop`", server.Connection, tr))
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        var list = new List<Content>();
-                        using (var command = new MySqlCommand(
-                            $"SELECT `Id`,`Name` FROM `Purchase` ORDER BY `Id` LIMIT 1",
-                            server.Connection, tr))
-                        {
-                            using (var reader = command.ExecuteReader())
-                            {
-                                while (reader.Read())
-                                {
-                                    list.Add(new Content()
-                                    {
-                                        Id = reader.GetInt32(0),
-                                        Name = reader.GetString(1),
-                                    });
-                                }
-                            }
-                        }
-                        foreach (var item in list)
-                        {
-                            using (var insertCommand = new MySqlCommand(
-                                "INSERT INTO `Drop` (`Name`) VALUES (@Name)",
-                                server.Connection, tr))
-                            {
-                                insertCommand.Parameters.AddWithValue("@Name", item.Name);
-                                insertCommand.ExecuteNonQuery();
-                            }
-                            // очистка колоды прикупа
-                            using (var command = new MySqlCommand("DELETE FROM `Purchase` WHERE `Id`=@Id", server.Connection, tr))
-                            {
-                                command.Parameters.AddWithValue("@Id", item.Id);
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                        tr.Commit();
-                    }
-                    catch
-                    {
-                        tr.Rollback();
-                    }
+                    dropDoc.Root?.Add(firstCard);
+                    firstCard.Remove();
                 }
+
+                purchaseDoc.Save(PurchaseXmlPath);
+                dropDoc.Save(DropXmlPath);
             }
         }
 
         public static void EmptyHands()
         {
-            using (var server = new Server())
+            if (File.Exists(HandsXmlPath))
             {
-                if (server.Connected)
-                {
-                    // очистка колод на руках
-                    using (var command = new MySqlCommand("DELETE FROM `Hands`", server.Connection))
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                }
+                var doc = XDocument.Load(HandsXmlPath);
+                doc.Root?.RemoveAll();
+                doc.Save(HandsXmlPath);
             }
         }
 
         public static Dictionary<string, Image> GetResourceImages()
         {
+            // Логика не изменяется, т.к. она не связана с базой данных
             var dict = new Dictionary<string, Image>();
             var heights = new int[] { 0, 360, 720, 1080, 1440, 1800, 2160, 2520 };
             var widths = new int[] { 0, 240, 480, 720, 960, 1200, 1440, 1680, 1920, 2160, 2400, 2640, 2880, 3120 };
             var colorNames = Enum.GetNames(typeof(CardColor)).Take(4).ToArray();
-            // источник рисунка игральной поверхности карт
             var source = Properties.Resources.Cards;
+
             using (var graphics = Graphics.FromImage(source))
             {
                 var width = 241;
@@ -306,9 +205,7 @@ namespace GameUno
                             g.DrawImage(source, 0, 0, rect, GraphicsUnit.Pixel);
                         }
                         image.MakeTransparent(Color.Green);
-                        // пропускаем пустые карты, всего должно получиться 108 карт в колоде
-                        if (i > 3 && j == 0)
-                            continue;
+                        if (i > 3 && j == 0) continue;
                         string key = string.Empty;
                         var colorName = j == 13 ? $"Black" : $"{colorNames[i % 4]}";
                         switch (j)
@@ -323,14 +220,10 @@ namespace GameUno
                                 key = $"{colorName}(ActiveTakeTwo)";
                                 break;
                             case 13:
-                                if (i < 4)
-                                    key = "Black(WildColor)";
-                                else
-                                    key = "Black(WildColor, TakeFour)";
+                                key = i < 4 ? "Black(WildColor)" : "Black(WildColor, TakeFour)";
                                 break;
                             default:
-                                if (j <= 9)
-                                    key = $"{colorName}({j})";
+                                if (j <= 9) key = $"{colorName}({j})";
                                 break;
                         }
                         if (!string.IsNullOrEmpty(key) && !dict.ContainsKey(key))

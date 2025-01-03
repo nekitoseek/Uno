@@ -1,103 +1,78 @@
-﻿using MySql.Data.MySqlClient;
+﻿
+using System.Xml.Linq;
 
 namespace GameUno
 {
     public static class PurchaseDesk
     {
+        private const string DeskFilePath = "Desk.xml";
+        private const string PurchaseFilePath = "Purchase.xml";
+
+        static PurchaseDesk()
+        {
+            if (!File.Exists(DeskFilePath))
+            {
+                InitializeDeskXml();
+            }
+
+            if (!File.Exists(PurchaseFilePath))
+            {
+                InitializePurchaseXml();
+            }
+        }
+
+        private static void InitializeDeskXml()
+        {
+            var desk = new XElement("Desk",
+                new XElement("Card", new XElement("Id", 0), new XElement("Name", "Red(0)")),
+                new XElement("Card", new XElement("Id", 1), new XElement("Name", "Red(1)"))
+            // Добавьте остальные карты аналогично
+            );
+            desk.Save(DeskFilePath);
+        }
+
+        private static void InitializePurchaseXml()
+        {
+            var purchase = new XElement("Purchase");
+            purchase.Save(PurchaseFilePath);
+        }
+
         public static int CardsCount()
         {
-            using (var server = new Server())
-            {
-                if (server.Connected)
-                {
-                    using (var command = new MySqlCommand(
-                        "SELECT COUNT(*) FROM `purchase`", server.Connection))
-                    {
-                        return (int)(long)command.ExecuteScalar();
-                    }
-                }
-            }
-            return 0;
+            var xml = XElement.Load(PurchaseFilePath);
+            return xml.Elements("Card").Count();
         }
 
         public static void DropThisCardId(int id)
         {
-            using (var server = new Server())
+            var purchase = XElement.Load(PurchaseFilePath);
+            var card = purchase.Elements("Card").FirstOrDefault(c => (int)c.Element("Id") == id);
+            if (card != null)
             {
-                if (server.Connected)
-                {
-                    // очистка колоды прикупа
-                    using (var command = new MySqlCommand("DELETE FROM `Purchase` WHERE `Id`=@Id", server.Connection))
-                    {
-                        command.Parameters.AddWithValue("@Id", id);
-                        command.ExecuteNonQuery();
-                    }
-                }
+                card.Remove();
+                purchase.Save(PurchaseFilePath);
             }
         }
 
         public static void ReshuffleCards()
         {
-            using (var server = new Server())
+            var desk = XElement.Load(DeskFilePath);
+            var cards = desk.Elements("Card").ToList();
+
+            var random = new Random();
+            var shuffledCards = cards.OrderBy(_ => random.Next()).ToList();
+
+            var purchase = new XElement("Purchase");
+            foreach (var card in shuffledCards)
             {
-                if (server.Connected)
-                {
-                    var tr = server.Connection.BeginTransaction();
-                    try
-                    {
-                        var list = new List<int>();
-                        using (var command = new MySqlCommand("SELECT `Id` FROM `Desk` ORDER BY `Id`", server.Connection, tr))
-                        {
-                            using (var reader = command.ExecuteReader())
-                            {
-                                while (reader.Read())
-                                    list.Add(reader.GetInt32(0));
-                            }
-                        }
-                        // очистка колоды прикупа
-                        using (var command = new MySqlCommand("DELETE FROM `Purchase`", server.Connection, tr))
-                        {
-                            command.ExecuteNonQuery();
-                        }
-                        // перетасуем карты, делаем выборку из колоды образцов в колоду прикупа в случайном порядке
-                        var rand = new Random();
-                        while (list.Count > 0)
-                        {
-                            var index = rand.Next(0, list.Count);
-                            var cardIndex = list[index];
-                            list.RemoveAt(index);
-                            string? name = null;
-                            using (var command = new MySqlCommand("SELECT `Name` FROM `UNO`.`Desk` WHERE `Id`=@Id",
-                                server.Connection, tr))
-                            {
-                                command.Parameters.AddWithValue("@Id", cardIndex);
-                                using (var reader = command.ExecuteReader())
-                                {
-                                    while (reader.Read())
-                                    {
-                                        name = reader.GetString(0);
-                                        break;
-                                    }
-                                }
-                            }
-                            if (name != null)
-                            {
-                                using (var insertCommand = new MySqlCommand("INSERT INTO `Purchase` (`Name`) VALUES (@Name)",
-                                    server.Connection, tr))
-                                {
-                                    insertCommand.Parameters.AddWithValue("@Name", name);
-                                    insertCommand.ExecuteNonQuery();
-                                }
-                            }
-                        }
-                        tr.Commit();
-                    }
-                    catch
-                    {
-                        tr.Rollback();
-                    }
-                }
+                var id = (int)card.Element("Id");
+                var name = (string)card.Element("Name");
+                purchase.Add(new XElement("Card",
+                    new XElement("Id", id),
+                    new XElement("Name", name)));
             }
+
+            purchase.Save(PurchaseFilePath);
         }
     }
 }
