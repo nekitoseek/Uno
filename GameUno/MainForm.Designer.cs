@@ -489,7 +489,7 @@
             // 
             // imageListCards
             // 
-            this.imageListCards.ColorDepth = System.Windows.Forms.ColorDepth.Depth8Bit;
+            this.imageListCards.ColorDepth = System.Windows.Forms.ColorDepth.Depth32Bit;
             this.imageListCards.ImageSize = new System.Drawing.Size(80, 120);
             this.imageListCards.TransparentColor = System.Drawing.Color.Transparent;
             // 
