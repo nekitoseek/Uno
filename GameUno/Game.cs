@@ -10,7 +10,7 @@ namespace GameUno
         private static bool run;
         private static readonly string GameFilePath = "Game.xml";
 
-        public static int PlaceCount { get; private set; } = 2;
+        public static int PlaceCount { get; private set; } = 3;
         public static int TargetScore { get; private set; } = 500;
 
         public static int Round { get; set; }
